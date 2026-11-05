@@ -132,7 +132,7 @@ function getFileStatus($expiryDate) {
 
     <!-- Vault Contents Display -->
     <?php if ($viewUser): ?>
-        <div class="vault-card overflow-hidden">
+        <div class="vault-card overflow-hidden mb-4">
             <div class="bg-light px-4 pt-3 border-bottom">
                 <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-folder2-open me-2"></i>Vault Files for: <?=htmlspecialchars($viewUser)?></h5>
                 <ul class="nav nav-tabs border-0">
@@ -174,12 +174,24 @@ function getFileStatus($expiryDate) {
             </div>
         </div>
     <?php else: ?>
-        <div class="text-center py-5 vault-card bg-white p-5">
+        <div class="text-center py-5 vault-card bg-white p-5 mb-4">
             <div class="mb-3 text-primary opacity-50"><i class="bi bi-shield-lock" style="font-size: 3.5rem;"></i></div>
             <h5 class="fw-bold text-dark">No User Selected</h5>
             <p class="text-muted small mb-0">Please select an active user from the filter pills above to inspect their vault documents.</p>
         </div>
     <?php endif; ?>
+
+    <!-- BAGONG FEATURE: Quick System Quick Action / Export Panel (Idinagdag nang hindi ginalaw ang lumang code) -->
+    <div class="vault-card p-4 d-flex justify-content-between align-items-center bg-white">
+        <div>
+            <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Quick Admin Actions</h6>
+            <p class="text-muted small mb-0">Need to broadcast a message or manage quick system settings? Access shortcuts instantly.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="users.php" class="btn btn-outline-primary btn-sm px-3 rounded-pill"><i class="bi bi-person-gear me-1"></i> Manage Users</a>
+            <a href="admin_inquiries.php" class="btn btn-outline-dark btn-sm px-3 rounded-pill"><i class="bi bi-chat-left-text me-1"></i> View Inquiries</a>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
