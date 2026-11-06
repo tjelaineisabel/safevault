@@ -2,34 +2,30 @@
 include 'db.php';
 session_start();
 
-if (!isset($_SESSION['user']) || $_SESSION['user'] === 'jelaine123') {
+if (!isset($_SESSION['user']) ||$_SESSION['user'] === 'jelaine123') {
     header("Location: login.php");
     exit();
 }
 
-$currentUser = $_SESSION['user'];
-$message = "";
+$currentUser = $_SESSION['user'];$message = "";
 
 // --- 1. DYNAMIC CATEGORY FETCHING ---
 // Kinukuha ang lahat ng tables sa db maliban sa users at inquiries
-$tableRes = $conn->query("SHOW TABLES");
+$tableRes =$conn->query("SHOW TABLES");
 $checkCats = [];
 $dbname_var = "Tables_in_" . $dbname; 
-while($tRow = $tableRes->fetch_assoc()) {
-    $tableName = $tRow[$dbname_var];
-    if ($tableName != 'users' && $tableName != 'inquiries') {
-        $checkCats[] = $tableName;
+while($tRow = $tableRes->fetch_assoc()) {$tableName = $tRow[$dbname_var];
+    if ($tableName != 'users' &&$tableName != 'inquiries') {
+        $checkCats[] =$tableName;
     }
 }
 
-$currentCategory = isset($_GET['cat']) && in_array($_GET['cat'], $checkCats) ? mysqli_real_escape_string($conn, $_GET['cat']) : ($checkCats[0] ?? 'personal');
-$viewDeleted = isset($_GET['view']) && $_GET['view'] === 'trash';
+$currentCategory = isset($_GET['cat']) && in_array($_GET['cat'],$checkCats) ? mysqli_real_escape_string($conn,$_GET['cat']) : ($checkCats[0] ?? 'personal');$viewDeleted = isset($_GET['view']) &&$_GET['view'] === 'trash';
 
 // --- 2. LOGIC FOR CREATING NEW FOLDER (CATEGORY) ---
 if (isset($_POST['create_folder'])) {
     $folderName = preg_replace('/[^a-z0-9_]/', '', strtolower($_POST['folder_name']));
-    if (!empty($folderName)) {
-        $createSql = "CREATE TABLE IF NOT EXISTS `$folderName` (
+    if (!empty($folderName)) {$createSql = "CREATE TABLE IF NOT EXISTS `$folderName` (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50),
             file_name VARCHAR(255),
@@ -45,52 +41,60 @@ if (isset($_POST['create_folder'])) {
 
 // --- Status Messages ---
 if (isset($_GET['msg'])) {
-    if ($_GET['msg'] == 'deleted') $message = "<div class='alert alert-warning'>File moved to trash.</div>";
-    if ($_GET['msg'] == 'recovered') $message = "<div class='alert alert-success'>File recovered successfully!</div>";
-    if ($_GET['msg'] == 'folder_created') $message = "<div class='alert alert-success'>New category folder created!</div>";
+    if ($_GET['msg'] == 'deleted')$message = "<div class='alert alert-warning'>File moved to trash.</div>";
+    if ($_GET['msg'] == 'recovered')$message = "<div class='alert alert-success'>File recovered successfully!</div>";
+    if ($_GET['msg'] == 'folder_created')$message = "<div class='alert alert-success'>New category folder created!</div>";
 }
 
 // --- Logic for Delete/Recover ---
-if (isset($_GET['delete_id'])) {
-    $id = (int)$_GET['delete_id'];
-    $conn->query("UPDATE `$currentCategory` SET is_deleted = 1 WHERE id = $id AND username = '$currentUser'");
+if (isset($_GET['delete_id'])) {$id = (int)$_GET['delete_id'];$conn->query("UPDATE `$currentCategory` SET is_deleted = 1 WHERE id = $id AND username = '$currentUser'");
     header("Location: user_dashboard.php?cat=$currentCategory&msg=deleted"); exit();
 }
 
-if (isset($_GET['recover_id'])) {
-    $id = (int)$_GET['recover_id'];
-    $conn->query("UPDATE `$currentCategory` SET is_deleted = 0 WHERE id = $id AND username = '$currentUser'");
+if (isset($_GET['recover_id'])) {$id = (int)$_GET['recover_id'];$conn->query("UPDATE `$currentCategory` SET is_deleted = 0 WHERE id = $id AND username = '$currentUser'");
     header("Location: user_dashboard.php?cat=$currentCategory&view=trash&msg=recovered"); exit();
 }
 
-// --- Logic for Creating New File ---
-if (isset($_POST['create_file'])) {
-    $fileName = mysqli_real_escape_string($conn, $_POST['file_name']);
-    $category = mysqli_real_escape_string($conn, $_POST['category']); 
-    $expiryDate = $_POST['expiry_date'];
-    $conn->query("INSERT INTO `$category` (username, file_name, expiry_date, is_deleted) VALUES ('$currentUser', '$fileName', '$expiryDate', 0)");
-    $message = "<div class='alert alert-success'>File successfully vaulted!</div>";
+// --- Logic for Creating New File & Library Upload ---
+if (isset($_POST['create_file'])) {$fileName = mysqli_real_escape_string($conn,$_POST['file_name']);
+    $category = mysqli_real_escape_string($conn, $_POST['category']);$expiryDate = $_POST['expiry_date'];$targetDir = "uploads/";
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0777, true);
+    }
+    
+    if (isset($_FILES['vault_file']) &&$_FILES['vault_file']['error'] == 0) {
+        $uploadedFileName = basename($_FILES["vault_file"]["name"]);
+        $targetFilePath = $targetDir . time() . "_" . $uploadedFileName;
+        
+        if (move_uploaded_file($_FILES["vault_file"]["tmp_name"], $targetFilePath)) {$displayName = $fileName . " (" . $uploadedFileName . ")";
+            $conn->query("INSERT INTO `$category` (username, file_name, expiry_date, is_deleted) VALUES ('$currentUser', '$displayName', '$expiryDate', 0)");
+            $message = "<div class='alert alert-success'>File and library attachment successfully vaulted!</div>";
+        } else {
+            $conn->query("INSERT INTO `$category` (username, file_name, expiry_date, is_deleted) VALUES ('$currentUser', '$fileName', '$expiryDate', 0)");
+            $message = "<div class='alert alert-warning'>File vaulted, but physical upload failed.</div>";
+        }
+    } else {
+        $conn->query("INSERT INTO `$category` (username, file_name, expiry_date, is_deleted) VALUES ('$currentUser', '$fileName', '$expiryDate', 0)");
+        $message = "<div class='alert alert-success'>File successfully vaulted!</div>";
+    }
 }
 
 // --- Logic for Inquiry (Message Admin) ---
-if (isset($_POST['send_inquiry'])) {
-    $subject = mysqli_real_escape_string($conn, $_POST['subject']);
-    $msg_body = mysqli_real_escape_string($conn, $_POST['message_body']);
-    $conn->query("INSERT INTO inquiries (username, subject, message, status, date_sent) VALUES ('$currentUser', '$subject', '$msg_body', 'unread', NOW())");
+if (isset($_POST['send_inquiry'])) {$subject = mysqli_real_escape_string($conn,$_POST['subject']);
+    $msg_body = mysqli_real_escape_string($conn, $_POST['message_body']);$conn->query("INSERT INTO inquiries (username, subject, message, status, date_sent) VALUES ('$currentUser', '$subject', '$msg_body', 'unread', NOW())");
     $message = "<div class='alert alert-success'>Inquiry sent to admin!</div>";
 }
-$userInquiries = $conn->query("SELECT * FROM inquiries WHERE username = '$currentUser' ORDER BY date_sent DESC");
+$userInquiries =$conn->query("SELECT * FROM inquiries WHERE username = '$currentUser' ORDER BY date_sent DESC");
 
 // --- Notification Logic ---
 $notifications = [];
 $today = new DateTime();
-foreach ($checkCats as $cat) {
-    $nResult = $conn->query("SELECT file_name, expiry_date FROM `$cat` WHERE username = '$currentUser' AND is_deleted = 0");
+foreach ($checkCats as$cat) {
+    $nResult =$conn->query("SELECT file_name, expiry_date FROM `$cat` WHERE username = '$currentUser' AND is_deleted = 0");
     if ($nResult) {
-        while ($nRow = $nResult->fetch_assoc()) {
-            if (!empty($nRow['expiry_date']) && $nRow['expiry_date'] != '0000-00-00') {
-                $diff = (int)$today->diff(new DateTime($nRow['expiry_date']))->format("%r%a");
-                if ($diff >= 0 && $diff <= 7) $notifications[] = "<strong>{$nRow['file_name']}</strong> expires in $diff day(s)!";
+        while ($nRow =$nResult->fetch_assoc()) {
+            if (!empty($nRow['expiry_date']) && $nRow['expiry_date'] != '0000-00-00') {$diff = (int)$today->diff(new DateTime($nRow['expiry_date']))->format("%r%a");
+                if ($diff >= 0 &&$diff <= 7) $notifications[] = "<strong>{$nRow['file_name']}</strong> expires in$diff day(s)!";
             }
         }
     }
@@ -170,11 +174,11 @@ foreach ($checkCats as $cat) {
     <div class="row mb-4">
         <div class="col-12">
             <ul class="nav nav-pills overflow-auto flex-nowrap pb-2">
-                <?php foreach($checkCats as $c): ?>
+                <?php foreach($checkCats as$c): ?>
                     <li class="nav-item">
-                        <a class="nav-link <?= ($currentCategory == $c) ? 'active shadow-sm' : '' ?>" 
+                        <a class="nav-link <?= ($currentCategory ==$c) ? 'active shadow-sm' : '' ?>" 
                            href="user_dashboard.php?cat=<?=$c?><?=$viewDeleted ? '&view=trash' : ''?>">
-                           <?= ucfirst($c) ?>
+                            <?= ucfirst($c) ?>
                         </a>
                     </li>
                 <?php endforeach; ?>
@@ -189,11 +193,10 @@ foreach ($checkCats as $cat) {
             </thead>
             <tbody>
                 <?php
-                $statusFilter = $viewDeleted ? 1 : 0;
-                $res = $conn->query("SELECT * FROM `$currentCategory` WHERE username = '$currentUser' AND is_deleted = $statusFilter");
-                if ($res && $res->num_rows > 0) {
-                    while($row = $res->fetch_assoc()) {
-                        $diff = (int)$today->diff(new DateTime($row['expiry_date']))->format("%r%a");
+                $statusFilter =$viewDeleted ? 1 : 0;
+                $res =$conn->query("SELECT * FROM `$currentCategory` WHERE username = '$currentUser' AND is_deleted =$statusFilter");
+                if ($res &&$res->num_rows > 0) {
+                    while($row = $res->fetch_assoc()) {$diff = (int)$today->diff(new DateTime($row['expiry_date']))->format("%r%a");
                         $badge = ($diff < 0) ? "bg-secondary opacity-75'>Expired" : (($diff <= 7) ? "bg-danger'>Action Required" : "bg-success'>Secure");
                         echo "<tr>
                                 <td class='fw-bold'><i class='bi bi-file-earmark-lock2 me-2 text-primary'></i>".htmlspecialchars($row['file_name'])."</td>
@@ -227,8 +230,8 @@ foreach ($checkCats as $cat) {
                 <div class="row g-0">
                     <div class="col-md-6 border-end p-3" style="max-height: 450px; overflow-y: auto;">
                         <h6 class="fw-bold small border-bottom pb-2">MESSAGE HISTORY</h6>
-                        <?php if ($userInquiries && $userInquiries->num_rows > 0): 
-                            while($msg = $userInquiries->fetch_assoc()): ?>
+                        <?php if ($userInquiries &&$userInquiries->num_rows > 0): 
+                            while($msg =$userInquiries->fetch_assoc()): ?>
                             <div class="inquiry-bubble small">
                                 <strong><?= htmlspecialchars($msg['subject']) ?></strong><br>
                                 <?= htmlspecialchars($msg['message']) ?>
@@ -260,13 +263,14 @@ foreach ($checkCats as $cat) {
                 <h5 class="modal-title">Vault New Document</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3"><label class="fw-bold small">File Name</label><input type="text" name="file_name" class="form-control" required></div>
+                    <div class="mb-3"><label class="fw-bold small">Select File from Library</label><input type="file" name="vault_file" class="form-control" required></div>
                     <div class="mb-3">
                         <label class="fw-bold small">Category</label>
                         <select name="category" class="form-select">
-                            <?php foreach($checkCats as $c): ?>
+                            <?php foreach($checkCats as$c): ?>
                                 <option value="<?=$c?>" <?=($currentCategory == $c)?'selected':''?>><?=ucfirst($c)?></option>
                             <?php endforeach; ?>
                         </select>
