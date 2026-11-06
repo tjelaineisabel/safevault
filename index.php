@@ -117,7 +117,10 @@ function getFileStatus($expiryDate) {
             <div class="col-md-8">
                 <div class="d-flex flex-wrap justify-content-md-end gap-2 align-items-center">
                     <span class="text-muted small me-2">Select User:</span>
-                    <?php if($userList->num_rows > 0): while($u = $userList->fetch_assoc()): ?>
+                    <?php 
+                    $userList->data_seek(0);
+                    if($userList->num_rows > 0): while($u = $userList->fetch_assoc()): 
+                    ?>
                         <a href="index.php?view_user=<?=urlencode($u['username'])?>&search=<?=urlencode($search)?>" 
                            class="user-pill <?=($viewUser == $u['username']) ? 'bg-primary text-white shadow-sm' : 'bg-light text-dark border'?>">
                            <?=htmlspecialchars($u['username'])?>
@@ -174,14 +177,45 @@ function getFileStatus($expiryDate) {
             </div>
         </div>
     <?php else: ?>
-        <div class="text-center py-5 vault-card bg-white p-5 mb-4">
-            <div class="mb-3 text-primary opacity-50"><i class="bi bi-shield-lock" style="font-size: 3.5rem;"></i></div>
-            <h5 class="fw-bold text-dark">No User Selected</h5>
-            <p class="text-muted small mb-0">Please select an active user from the filter pills above to inspect their vault documents.</p>
+        <!-- Active Users Directory Table (Integrated when no user is selected) -->
+        <div class="vault-card p-4 mb-4 bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Active Users Directory</h5>
+                <span class="badge bg-primary rounded-pill px-3 py-2">Total: <?=$totalUsers?></span>
+            </div>
+            <p class="text-muted small mb-3">Select a user above or click "View Vault" below to inspect their files.</p>
+            <table class="table align-middle mb-0">
+                <thead class="table-light text-muted small uppercase">
+                    <tr>
+                        <th>USERNAME</th>
+                        <th>STATUS</th>
+                        <th>ACTION</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $activeUsersQuery = $conn->query("SELECT username, status FROM users WHERE status = 'active' AND username != 'jelaine123'");
+                    if ($activeUsersQuery && $activeUsersQuery->num_rows > 0):
+                        while($au = $activeUsersQuery->fetch_assoc()):
+                    ?>
+                        <tr>
+                            <td class="fw-bold"><i class="bi bi-person-badge me-2 text-secondary"></i><?=htmlspecialchars($au['username'])?></td>
+                            <td><span class="badge bg-success rounded-pill px-3 py-1">Active</span></td>
+                            <td>
+                                <a href="index.php?view_user=<?=urlencode($au['username'])?>" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    <i class="bi bi-folder2-open me-1"></i> View Vault
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endwhile; else: ?>
+                        <tr><td colspan="3" class="text-center py-4 text-muted">No active users found.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     <?php endif; ?>
 
-    <!-- BAGONG FEATURE: Quick System Quick Action / Export Panel (Idinagdag nang hindi ginalaw ang lumang code) -->
+    <!-- Quick Action / Export Panel -->
     <div class="vault-card p-4 d-flex justify-content-between align-items-center bg-white">
         <div>
             <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Quick Admin Actions</h6>
